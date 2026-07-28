@@ -1,0 +1,37 @@
+name: Atualizar dados do Painel
+
+on:
+  schedule:
+    # Roda a cada 30 minutos, todos os dias.
+    # Atenção: horário do GitHub Actions é UTC.
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}   # permite rodar manualmente pelo botão "Run workflow"
+
+jobs:
+  extrair-dados:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Rodar o robô de extração
+        env:
+          WMWEB_LOGIN: ${{ secrets.WMWEB_LOGIN }}
+          WMWEB_SENHA: ${{ secrets.WMWEB_SENHA }}
+        run: python scraper.py
+
+      - name: Publicar data.json atualizado
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Atualiza dados do painel"
+          file_pattern: data.json
