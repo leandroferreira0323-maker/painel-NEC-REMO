@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Painel de Controle — Operações</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg: #0A0E16;
+  --panel: #121826;
+  --panel-2: #17203352;
+  --border: #232C3D;
+  --text: #F2F5F9;
+  --text-dim: #8B96A8;
+  --aa: #2BC77A;
+  --aa-glow: rgba(43,199,122,.18);
+  --a: #4C8DFF;
+  --a-glow: rgba(76,141,255,.16);
+  --b: #29B6C7;
+  --b-glow: rgba(41,182,199,.16);
+  --c: #F5A623;
+  --c-glow: rgba(245,166,35,.18);
+  --d: #FF4757;
+  --d-glow: rgba(255,71,87,.28);
+  --d-bright: #FF6B81;
+}
+
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{
+  background: radial-gradient(ellipse at top, #101627 0%, #080A10 65%);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  height:100vh;
+  width:100vw;
+  overflow:hidden;
+}
+#appRoot{
+  transform-origin: top left;
+  width:100%;
+}
+
+/* ---------- HEADER ---------- */
+header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 10px 28px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #10151F 0%, #0B0F17 100%);
+}
+.brand{ display:flex; align-items:center; gap:16px; }
+.brand .bolt{
+  width:44px; height:44px; border-radius:10px;
+  background: linear-gradient(135deg, #1B2436, #0D1220);
+  border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px;
+}
+.brand h1{
+  font-family:'Oswald', sans-serif; font-weight:600; letter-spacing:.5px;
+  font-size:17px; text-transform:uppercase; line-height:1.1;
+}
+.brand .sub{ color:var(--text-dim); font-size:10.5px; margin-top:1px; letter-spacing:.3px; }
+
+.header-right{ display:flex; align-items:center; gap:22px; }
+.clock-block{ text-align:right; }
+.clock{ font-family:'IBM Plex Mono', monospace; font-size:19px; font-weight:600; letter-spacing:1px;}
+.date{ color:var(--text-dim); font-size:12px; text-transform:capitalize; }
+
+.refresh-block{ text-align:right; font-size:12px; color:var(--text-dim); }
+.refresh-block b{ color:var(--text); font-family:'IBM Plex Mono', monospace; }
+.progress-ring{ width:34px; height:34px; }
+
+#importBtn, #fullscreenBtn{
+  background: linear-gradient(135deg, #1B2436, #131A26);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:'Inter', sans-serif;
+  font-weight:600; font-size:13px;
+  padding:10px 16px; border-radius:8px; cursor:pointer;
+  display:flex; align-items:center; gap:8px;
+  transition: border-color .15s, transform .1s;
+}
+#importBtn:hover, #fullscreenBtn:hover{ border-color:#3A4A66; }
+#importBtn:active, #fullscreenBtn:active{ transform: scale(.97); }
+#fileInput{ display:none; }
+
+/* ---------- ALERT STRIP ---------- */
+.alert-strip{
+  background: linear-gradient(90deg, rgba(255,71,87,.14), rgba(255,71,87,.03) 60%);
+  border-bottom: 1px solid rgba(255,71,87,.35);
+  border-top: 1px solid rgba(255,71,87,.35);
+  padding: 6px 28px;
+  display:flex; align-items:center; gap:12px;
+  overflow:hidden;
+}
+.alert-strip .icon{
+  width:22px; height:22px; min-width:22px; border-radius:50%;
+  background: var(--d);
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:700; color:#0A0E16;
+  animation: pulseRing 1.6s ease-in-out infinite;
+}
+@keyframes pulseRing{
+  0%,100%{ box-shadow:0 0 0 0 rgba(255,71,87,.55); }
+  50%{ box-shadow:0 0 0 9px rgba(255,71,87,0); }
+}
+.alert-strip .txt{ font-size:12px; }
+.alert-strip .txt b{ color: var(--d-bright); font-family:'Oswald',sans-serif; letter-spacing:.3px; }
+.alert-strip .names{ color:var(--text-dim); font-size:11px; margin-top:1px; }
+
+/* ---------- KPI ROW ---------- */
+.kpi-row{
+  display:grid; grid-template-columns: repeat(6, 1fr);
+  gap:10px; padding: 10px 28px 4px;
+}
+.kpi{
+  background: var(--panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:8px 12px;
+  position:relative; overflow:hidden;
+}
+.kpi .label{
+  font-size:9.5px; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--text-dim); font-weight:600; margin-bottom:3px;
+}
+.kpi .value{
+  font-family:'Oswald', sans-serif; font-size:22px; font-weight:600; letter-spacing:.3px;
+}
+.kpi .value small{ font-size:15px; color:var(--text-dim); font-weight:500; }
+.kpi.chip-aa{ border-color: rgba(43,199,122,.4); }
+.kpi.chip-a{ border-color: rgba(76,141,255,.4); }
+.kpi.chip-c{ border-color: rgba(245,166,35,.4); }
+.kpi.chip-d{ border-color: rgba(255,71,87,.55); background: linear-gradient(160deg, rgba(255,71,87,.09), var(--panel) 60%); }
+.kpi.chip-aa .value{ color: var(--aa); }
+.kpi.chip-a .value{ color: var(--a); }
+.kpi.chip-c .value{ color: var(--c); }
+.kpi.chip-d .value{ color: var(--d-bright); }
+
+/* ---------- SECTION TITLES ---------- */
+.section-title{
+  padding: 8px 28px 2px;
+  display:flex; align-items:center; gap:10px;
+}
+.section-title h2{
+  font-family:'Oswald', sans-serif; font-size:12px; text-transform:uppercase;
+  letter-spacing:.6px; font-weight:600; color:var(--text-dim);
+}
+.section-title .line{ flex:1; height:1px; background: var(--border); }
+
+/* ---------- SUPERVISOR GROUPS ---------- */
+.supervisors{ padding: 4px 28px 14px; display:flex; flex-direction:column; gap:10px; }
+.sup-group h3{
+  font-family:'Oswald', sans-serif; font-size:13px; font-weight:600;
+  letter-spacing:.3px; margin-bottom:6px; display:flex; align-items:center; gap:8px;
+}
+.sup-group h3 .tag{
+  font-family:'Inter', sans-serif; font-size:11px; font-weight:600; color:var(--text-dim);
+  background:var(--panel); border:1px solid var(--border); padding:3px 9px; border-radius:20px;
+}
+.cards{
+  display:grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap:8px;
+}
+
+/* ---------- CARD ---------- */
+.card{
+  background: var(--panel);
+  border:1px solid var(--border);
+  border-left: 3px solid var(--a);
+  border-radius: 8px;
+  padding: 7px 9px;
+  position:relative;
+}
+.card.aa{ border-left-color: var(--aa); }
+.card.a{ border-left-color: var(--a); }
+.card.b{ border-left-color: var(--b); }
+.card.c{ border-left-color: var(--c); }
+.card.d{
+  border-left-color: var(--d);
+  background: linear-gradient(155deg, rgba(255,71,87,.10), var(--panel) 55%);
+  box-shadow: 0 0 0 1px rgba(255,71,87,.25) inset;
+  animation: cardPulse 2.4s ease-in-out infinite;
+}
+@keyframes cardPulse{
+  0%,100%{ box-shadow: 0 0 0 1px rgba(255,71,87,.22) inset, 0 0 0 0 rgba(255,71,87,0); }
+  50%{ box-shadow: 0 0 0 1px rgba(255,71,87,.4) inset, 0 0 14px 0 rgba(255,71,87,.22); }
+}
+
+.card-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;}
+.card-top .name{ font-weight:600; font-size:11.5px; line-height:1.2; }
+.card-top .frota{ font-family:'IBM Plex Mono', monospace; color:var(--text-dim); font-size:9.5px; margin-top:1px;}
+
+.class-badge{
+  font-family:'Oswald', sans-serif; font-size:10px; font-weight:700;
+  width:20px; height:20px; border-radius:5px;
+  display:flex; align-items:center; justify-content:center;
+  color:#0A0E16; flex-shrink:0;
+}
+.class-badge.aa{ background: var(--aa); }
+.class-badge.a{ background: var(--a); }
+.class-badge.b{ background: var(--b); }
+.class-badge.c{ background: var(--c); }
+.class-badge.d{ background: var(--d); color:#fff; }
+
+.status-pill{
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:9px; font-weight:600; padding:2px 7px; border-radius:20px;
+  margin-bottom:4px;
+}
+.status-pill.exec{ background: rgba(76,141,255,.15); color:#8FB4FF; }
+.status-pill.fim{ background: rgba(43,199,122,.15); color:#7EE3AC; }
+.status-pill.acion{ background: rgba(245,166,35,.15); color:#FFC966; }
+.status-pill.desig{ background: rgba(139,150,168,.15); color:var(--text-dim); }
+.status-pill.sematv{ background: rgba(255,71,87,.18); color:var(--d-bright); }
+.status-pill .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+.metrics-grid{
+  display:grid; grid-template-columns: repeat(3, 1fr);
+  gap:4px; margin-bottom:4px;
+}
+.metrics-grid div{ text-align:center; }
+.metrics-grid .m-val{ font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:12px; }
+.metrics-grid .m-lbl{ font-size:7.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.3px; margin-top:0px;}
+
+.bar-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;}
+.bar-row .bar-lbl{ font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.3px; }
+.bar-row .pct{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:12px; }
+.improd-pct.imp-ok{ color: var(--aa); }
+.improd-pct.imp-warn{ color: var(--c); }
+.improd-pct.imp-bad{ color: var(--d-bright); }
+.m-val.imp-ok{ color: var(--aa); }
+.m-val.imp-warn{ color: var(--c); }
+.m-val.imp-bad{ color: var(--d-bright); }
+.metrics-grid-2{ margin-top:4px; margin-bottom:2px; padding-top:4px; border-top:1px dashed var(--border); }
+.bar-track{ height:5px; border-radius:20px; background:#1B2333; overflow:hidden; }
+.bar-fill{ height:100%; border-radius:20px; }
+.bar-fill.aa{ background: var(--aa); }
+.bar-fill.a{ background: var(--a); }
+.bar-fill.b{ background: var(--b); }
+.bar-fill.c{ background: var(--c); }
+.bar-fill.d{ background: var(--d); }
+
+.card-foot{ display:flex; justify-content:space-between; margin-top:4px; font-size:8.5px; color:var(--text-dim); font-family:'IBM Plex Mono', monospace;}
+
+footer{
+  text-align:center; padding:6px; color:var(--text-dim); font-size:9px;
+  border-top:1px solid var(--border);
+}
+
+/* ---------- FILTER BAR ---------- */
+.filter-bar{
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  padding: 6px 28px 2px;
+}
+.filter-bar .flabel{
+  font-size:11.5px; text-transform:uppercase; letter-spacing:.6px;
+  color:var(--text-dim); font-weight:600; margin-right:4px;
+}
+.filter-chip{
+  font-family:'Inter', sans-serif; font-size:10.5px; font-weight:600;
+  padding:4px 11px; border-radius:20px; cursor:pointer;
+  background: var(--panel); border:1px solid var(--border); color:var(--text-dim);
+  transition: all .15s;
+}
+.filter-chip:hover{ border-color:#3A4A66; color:var(--text); }
+.filter-chip.active{
+  background: linear-gradient(135deg, #1F3A5C, #16283D);
+  border-color: var(--a); color:#fff;
+}
+.sup-avg-chip{
+  font-family:'Inter', sans-serif; font-size:10.5px; font-weight:500;
+  padding:4px 11px; border-radius:20px;
+  background: var(--panel-2); border:1px solid var(--border); color:var(--text-dim);
+}
+.sup-avg-chip b{ color: var(--text); font-family:'IBM Plex Mono', monospace; margin-left:4px; }
+
+/* ---------- CONTROLADOR SUMMARY ---------- */
+.controlador-card{
+  background: var(--panel);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:8px 10px;
+}
+.cc-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; }
+.cc-name{ font-weight:700; font-size:11.5px; }
+.cc-count{ font-size:9.5px; color:var(--text-dim); font-family:'IBM Plex Mono', monospace; }
+.class-dist{ display:flex; gap:4px; margin-bottom:6px; }
+.cd-badge{
+  flex:1; text-align:center; border-radius:5px; padding:2px 0;
+  font-size:8.5px; font-weight:700; color:#0A0E16;
+}
+.cd-badge span{ display:block; font-size:7.5px; opacity:.8; }
+.cd-badge b{ display:block; font-family:'IBM Plex Mono', monospace; font-size:10px; }
+.cd-badge.cd-aa{ background: var(--aa); }
+.cd-badge.cd-a{ background: var(--a); color:#fff; }
+.cd-badge.cd-b{ background: var(--b); color:#fff; }
+.cd-badge.cd-c{ background: var(--c); }
+.cd-badge.cd-d{ background: var(--d); color:#fff; }
+.cc-metrics{ margin:0; padding-top:5px; border-top:1px dashed var(--border); }
+.cc-metrics-4{ grid-template-columns: repeat(4, 1fr); margin:0; padding-top:5px; border-top:1px dashed var(--border); }
+
+@media (max-width: 1200px){
+  .kpi-row{ grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+<div id="appRoot">
+<header>
+  <div class="brand">
+    <div class="bolt">⚡</div>
+    <div>
+      <h1>Painel de Controle — Operações</h1>
+      <div class="sub" id="unitsLabel">REMO Engenharia · CEMIG</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="refresh-block">
+      Última atualização<br><b id="lastUpdate">--:--</b>
+    </div>
+    <div class="refresh-block">
+      Próxima em<br><b id="countdown">30:00</b>
+    </div>
+    <div class="clock-block">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="date" id="dateLabel">--</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    <button id="fullscreenBtn" onclick="toggleFullscreen()">⛶ Tela cheia</button>
+    <button id="importBtn" onclick="document.getElementById('fileInput').click()">📥 Importar planilha</button>
+  </div>
+</header>
+
+<div class="alert-strip" id="alertStrip" style="display:none;">
+  <div class="icon">!</div>
+  <div>
+    <div class="txt"><b id="alertCount">0 EQUIPES CLASSIFICAÇÃO D</b> precisam de atenção imediata</div>
+    <div class="names" id="alertNames"></div>
+  </div>
+</div>
+
+<div class="kpi-row" id="kpiRow"></div>
+
+<div class="filter-bar" id="supAvgRow">
+  <span class="flabel">Média US Executada por Supervisor:</span>
+</div>
+
+<div class="section-title" style="padding-top:2px;"><h2>Resumo por Controlador</h2><div class="line"></div></div>
+<div class="cards" id="controladorSummary" style="padding: 0 28px 6px;"></div>
+
+<div class="filter-bar" id="unidadeBar">
+  <span class="flabel">Unidade:</span>
+</div>
+<div class="filter-bar" id="filterBar">
+  <span class="flabel">Supervisor:</span>
+</div>
+
+<div class="section-title"><h2>Equipes por Supervisor</h2><div class="line"></div></div>
+<div class="supervisors" id="supervisors"></div>
+
+<footer>Atualiza automaticamente a cada 30 minutos (relembrete) · Importe a planilha mais recente para refletir os dados atuais</footer>
+</div>
+
+<script>
+let currentData = [{"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "BRUNO DE ABREU RIBEIRO", "Classificação": "D", "Situação": "Finalizado", "Frota": 5196, "Início Jornada": "2026-07-28 06:35:54", "1° Atendimento": "2026-07-28 09:12:54", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 2, "Executados": 1, "Produtivos": 1, "Meta": 1.02, "Us Prev": 0.41, "Produção": 0.156245, "% Produção": 15.32, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "D", "Situação": "Finalizado", "Frota": 7641, "Início Jornada": "2026-07-28 08:07:24", "1° Atendimento": "2026-07-28 09:11:03", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 42, "Executados": 1, "Produtivos": 1, "Meta": 0.4, "Us Prev": 0.476, "Produção": 0.01077, "% Produção": 2.69, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "DIOGO DOMINGOS CUNHA", "Classificação": "D", "Situação": "Finalizado", "Frota": 8259, "Início Jornada": "2026-07-28 06:55:07", "1° Atendimento": "2026-07-28 07:46:55", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 1, "Executados": 2, "Produtivos": 2, "Meta": 0.85, "Us Prev": 0.134, "Produção": 0.121714, "% Produção": 14.32, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "DIOGO DOMINGOS CUNHA", "Classificação": "D", "Situação": "Sem atividade", "Frota": 8753, "Início Jornada": "2026-07-28 06:01:07", "1° Atendimento": "", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 0, "Executados": 0, "Produtivos": 0, "Meta": 0.85, "Us Prev": "", "Produção": "", "% Produção": "", "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "BRUNO DE ABREU RIBEIRO", "Classificação": "D", "Situação": "Acionado", "Frota": 9128, "Início Jornada": "2026-07-28 09:00:38", "1° Atendimento": "", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 5, "Executados": 0, "Produtivos": 0, "Meta": 0.93, "Us Prev": 0.345, "Produção": "", "% Produção": "", "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "D", "Situação": "Finalizado", "Frota": 9131, "Início Jornada": "2026-07-28 07:57:42", "1° Atendimento": "2026-07-28 08:29:38", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 38, "Executados": 8, "Produtivos": 4, "Meta": 0.45, "Us Prev": 0.693, "Produção": 0.057479, "% Produção": 12.77, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "DIOGO DOMINGOS CUNHA", "Classificação": "D", "Situação": "Em execução", "Frota": 9193, "Início Jornada": "2026-07-28 06:56:43", "1° Atendimento": "2026-07-28 08:34:05", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 27, "Executados": 4, "Produtivos": 3, "Meta": 0.9, "Us Prev": 2.557, "Produção": 0.21065, "% Produção": 23.41, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "D", "Situação": "Finalizado", "Frota": 9454, "Início Jornada": "2026-07-28 07:50:08", "1° Atendimento": "2026-07-28 09:25:04", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 38, "Executados": 2, "Produtivos": 2, "Meta": 0.33, "Us Prev": 0.456, "Produção": 0.02154, "% Produção": 6.53, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "BRUNO DE ABREU RIBEIRO", "Classificação": "D", "Situação": "Em execução", "Frota": 9504, "Início Jornada": "2026-07-28 06:56:08", "1° Atendimento": "2026-07-28 08:54:44", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 15, "Executados": 1, "Produtivos": 1, "Meta": 0.9, "Us Prev": 1.56, "Produção": 0.186102, "% Produção": 20.68, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "BRUNO DE ABREU RIBEIRO", "Classificação": "D", "Situação": "Designado", "Frota": 9602, "Início Jornada": "2026-07-28 09:10:04", "1° Atendimento": "", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 13, "Executados": 0, "Produtivos": 0, "Meta": 0.9, "Us Prev": 1.151, "Produção": "", "% Produção": "", "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "BRUNO DE ABREU RIBEIRO", "Classificação": "D", "Situação": "Designado", "Frota": 9951, "Início Jornada": "2026-07-28 06:09:18", "1° Atendimento": "2026-07-28 06:53:53", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 23, "Executados": 1, "Produtivos": 0, "Meta": 0.85, "Us Prev": 2.396, "Produção": 0.010593, "% Produção": 1.25, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "C", "Situação": "Finalizado", "Frota": 3011, "Início Jornada": "2026-07-28 07:49:19", "1° Atendimento": "2026-07-28 08:17:47", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 33, "Executados": 6, "Produtivos": 6, "Meta": 0.38, "Us Prev": 0.608, "Produção": 0.064177, "% Produção": 16.89, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "C", "Situação": "Finalizado", "Frota": 9505, "Início Jornada": "2026-07-28 07:56:13", "1° Atendimento": "2026-07-28 08:30:46", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 36, "Executados": 10, "Produtivos": 9, "Meta": 0.57, "Us Prev": 0.564, "Produção": 0.095428, "% Produção": 16.74, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "C", "Situação": "Finalizado", "Frota": 9511, "Início Jornada": "2026-07-28 07:33:22", "1° Atendimento": "2026-07-28 08:17:28", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 25, "Executados": 11, "Produtivos": 10, "Meta": 0.57, "Us Prev": 0.389, "Produção": 0.107467, "% Produção": 18.85, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "C", "Situação": "Finalizado", "Frota": 9776, "Início Jornada": "2026-07-28 07:45:09", "1° Atendimento": "2026-07-28 08:24:52", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 30, "Executados": 7, "Produtivos": 7, "Meta": 0.45, "Us Prev": 0.396, "Produção": 0.079628, "% Produção": 17.7, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "AA", "Situação": "Finalizado", "Frota": 4103, "Início Jornada": "2026-07-28 07:06:40", "1° Atendimento": "2026-07-28 08:00:44", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 33, "Executados": 15, "Produtivos": 12, "Meta": 0.45, "Us Prev": 0.568, "Produção": 0.15491, "% Produção": 34.42, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "DIOGO DOMINGOS CUNHA", "Classificação": "AA", "Situação": "Finalizado", "Frota": 4481, "Início Jornada": "2026-07-28 07:09:08", "1° Atendimento": "2026-07-28 07:57:50", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 25, "Executados": 4, "Produtivos": 4, "Meta": 0.92, "Us Prev": 2.572, "Produção": 0.406005, "% Produção": 44.13, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "DIOGO DOMINGOS CUNHA", "Classificação": "AA", "Situação": "Finalizado", "Frota": 4497, "Início Jornada": "2026-07-28 07:00:36", "1° Atendimento": "2026-07-28 08:26:40", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 40, "Executados": 6, "Produtivos": 6, "Meta": 1.42, "Us Prev": 4.438, "Produção": 0.890413, "% Produção": 62.71, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "AA", "Situação": "Finalizado", "Frota": 7643, "Início Jornada": "2026-07-28 08:01:29", "1° Atendimento": "2026-07-28 08:37:05", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 30, "Executados": 7, "Produtivos": 7, "Meta": 0.4, "Us Prev": 0.466, "Produção": 0.080891, "% Produção": 20.22, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "DIOGO DOMINGOS CUNHA", "Classificação": "AA", "Situação": "Designado", "Frota": 8170, "Início Jornada": "2026-07-28 05:56:10", "1° Atendimento": "2026-07-28 07:01:02", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 24, "Executados": 6, "Produtivos": 5, "Meta": 0.95, "Us Prev": 2.934, "Produção": 0.505879, "% Produção": 53.25, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "DIOGO DOMINGOS CUNHA", "Classificação": "AA", "Situação": "Acionado", "Frota": 8831, "Início Jornada": "2026-07-28 06:10:16", "1° Atendimento": "2026-07-28 07:08:41", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 16, "Executados": 5, "Produtivos": 5, "Meta": 0.92, "Us Prev": 1.618, "Produção": 0.502022, "% Produção": 54.57, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "JEANNE JUNIA DA SILVA", "Classificação": "AA", "Situação": "Finalizado", "Frota": 8847, "Início Jornada": "2026-07-28 08:02:08", "1° Atendimento": "2026-07-28 08:42:10", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 34, "Executados": 4, "Produtivos": 4, "Meta": 0.33, "Us Prev": 0.501, "Produção": 0.059351, "% Produção": 17.99, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "BRUNO DE ABREU RIBEIRO", "Classificação": "AA", "Situação": "Finalizado", "Frota": 9739, "Início Jornada": "2026-07-28 07:01:06", "1° Atendimento": "2026-07-28 08:11:13", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 19, "Executados": 3, "Produtivos": 2, "Meta": 0.98, "Us Prev": 1.968, "Produção": 0.337953, "% Produção": 34.49, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "DIOGO DOMINGOS CUNHA", "Classificação": "AA", "Situação": "Acionado", "Frota": 9954, "Início Jornada": "2026-07-28 07:02:55", "1° Atendimento": "2026-07-28 08:14:51", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 23, "Executados": 5, "Produtivos": 3, "Meta": 0.87, "Us Prev": 2.335, "Produção": 0.235622, "% Produção": 27.08, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "WELTON CRUZ RODRIGUES", "Controlador": "BRUNO DE ABREU RIBEIRO", "Classificação": "A", "Situação": "Designado", "Frota": 8077, "Início Jornada": "2026-07-28 06:14:02", "1° Atendimento": "2026-07-28 08:38:18", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 4, "Executados": 3, "Produtivos": 2, "Meta": 0.92, "Us Prev": 0.567, "Produção": 0.315047, "% Produção": 34.24, "Unidade": "UO 271 - Bom Despacho"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "D", "Situação": "Finalizado", "Frota": 4010, "Início Jornada": "2026-07-28 05:46:25", "1° Atendimento": "2026-07-28 07:35:40", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 7, "Executados": 5, "Produtivos": 5, "Meta": 1.15, "Us Prev": 0.91, "Produção": 0.328871, "% Produção": 28.6, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "D", "Situação": "Designado", "Frota": 4020, "Início Jornada": "2026-07-28 07:09:38", "1° Atendimento": "2026-07-28 08:06:02", "Início Refeição": "2026-07-28 12:29:49", "Fim Refeição": "", "Fim Jornada": "", "Designados": 23, "Executados": 11, "Produtivos": 6, "Meta": 1.15, "Us Prev": 2.37, "Produção": 0.476185, "% Produção": 41.41, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "D", "Situação": "Em execução", "Frota": 4209, "Início Jornada": "2026-07-28 07:38:52", "1° Atendimento": "2026-07-28 09:26:20", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 19, "Executados": 12, "Produtivos": 12, "Meta": 0.45, "Us Prev": 0.508, "Produção": 0.183466, "% Produção": 40.77, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "D", "Situação": "Designado", "Frota": 7074, "Início Jornada": "2026-07-28 07:58:37", "1° Atendimento": "2026-07-28 08:23:47", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 34, "Executados": 11, "Produtivos": 11, "Meta": 0.45, "Us Prev": 0.571, "Produção": 0.185472, "% Produção": 41.22, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "D", "Situação": "Finalizado", "Frota": 7076, "Início Jornada": "2026-07-28 07:30:07", "1° Atendimento": "2026-07-28 08:42:41", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 33, "Executados": 17, "Produtivos": 15, "Meta": 0.43, "Us Prev": 0.613, "Produção": 0.1651, "% Produção": 38.4, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "D", "Situação": "Designado", "Frota": 7752, "Início Jornada": "2026-07-28 08:48:11", "1° Atendimento": "2026-07-28 09:14:34", "Início Refeição": "2026-07-28 11:50:57", "Fim Refeição": "", "Fim Jornada": "", "Designados": 23, "Executados": 5, "Produtivos": 5, "Meta": 0.42, "Us Prev": 0.337, "Produção": 0.078473, "% Produção": 18.68, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "D", "Situação": "Acionado", "Frota": 7917, "Início Jornada": "2026-07-28 07:01:39", "1° Atendimento": "2026-07-28 07:39:22", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 6, "Executados": 7, "Produtivos": 4, "Meta": 1.0, "Us Prev": 0.796, "Produção": 0.211744, "% Produção": 21.17, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "D", "Situação": "Finalizado", "Frota": 8031, "Início Jornada": "2026-07-28 08:02:56", "1° Atendimento": "2026-07-28 08:47:39", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 33, "Executados": 13, "Produtivos": 12, "Meta": 0.43, "Us Prev": 0.535, "Produção": 0.141001, "% Produção": 32.79, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "D", "Situação": "Designado", "Frota": 8503, "Início Jornada": "2026-07-28 06:41:48", "1° Atendimento": "2026-07-28 07:05:30", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 14, "Executados": 9, "Produtivos": 7, "Meta": 1.3, "Us Prev": 1.754, "Produção": 0.548099, "% Produção": 42.16, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "D", "Situação": "Designado", "Frota": 8685, "Início Jornada": "2026-07-28 06:11:29", "1° Atendimento": "2026-07-28 11:21:21", "Início Refeição": "2026-07-28 11:47:01", "Fim Refeição": "2026-07-28 12:30:11", "Fim Jornada": "", "Designados": 8, "Executados": 1, "Produtivos": 1, "Meta": 1.3, "Us Prev": 0.874, "Produção": 0.093212, "% Produção": 7.17, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "D", "Situação": "Acionado", "Frota": 8686, "Início Jornada": "2026-07-28 05:56:36", "1° Atendimento": "2026-07-28 07:22:03", "Início Refeição": "2026-07-28 11:31:12", "Fim Refeição": "2026-07-28 12:31:10", "Fim Jornada": "", "Designados": 7, "Executados": 3, "Produtivos": 3, "Meta": 1.0, "Us Prev": 0.961, "Produção": 0.306296, "% Produção": 30.63, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "D", "Situação": "Designado", "Frota": 8756, "Início Jornada": "2026-07-28 07:56:03", "1° Atendimento": "2026-07-28 09:31:29", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 17, "Executados": 21, "Produtivos": 13, "Meta": 0.45, "Us Prev": 0.508, "Produção": 0.168036, "% Produção": 37.34, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "D", "Situação": "Designado", "Frota": 9523, "Início Jornada": "2026-07-28 06:44:50", "1° Atendimento": "", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 7, "Executados": 0, "Produtivos": 0, "Meta": 1.25, "Us Prev": 0.636, "Produção": "", "% Produção": "", "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "C", "Situação": "Acionado", "Frota": 8387, "Início Jornada": "2026-07-28 06:09:49", "1° Atendimento": "2026-07-28 08:56:52", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 13, "Executados": 3, "Produtivos": 2, "Meta": 0.95, "Us Prev": 1.931, "Produção": 0.486085, "% Produção": 51.17, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "C", "Situação": "Finalizado", "Frota": 8611, "Início Jornada": "2026-07-28 07:52:08", "1° Atendimento": "2026-07-28 08:22:02", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 38, "Executados": 22, "Produtivos": 19, "Meta": 0.45, "Us Prev": 0.679, "Produção": 0.21919, "% Produção": 48.71, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "C", "Situação": "Finalizado", "Frota": 8777, "Início Jornada": "2026-07-28 07:59:50", "1° Atendimento": "2026-07-28 08:49:46", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 27, "Executados": 16, "Produtivos": 16, "Meta": 0.37, "Us Prev": 0.516, "Produção": 0.161162, "% Produção": 43.56, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "C", "Situação": "Designado", "Frota": 9245, "Início Jornada": "2026-07-28 07:15:37", "1° Atendimento": "2026-07-28 08:48:21", "Início Refeição": "2026-07-28 12:30:08", "Fim Refeição": "", "Fim Jornada": "", "Designados": 21, "Executados": 6, "Produtivos": 4, "Meta": 1.0, "Us Prev": 2.446, "Produção": 0.472726, "% Produção": 47.27, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "B", "Situação": "Finalizado", "Frota": 4135, "Início Jornada": "2026-07-28 07:59:31", "1° Atendimento": "2026-07-28 08:29:03", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 20, "Executados": 18, "Produtivos": 17, "Meta": 0.45, "Us Prev": 0.544, "Produção": 0.231343, "% Produção": 51.41, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "THIAGO VINICIUS DE SOUZA", "Controlador": "TALITA VIEIRA GOMES", "Classificação": "B", "Situação": "Finalizado", "Frota": 7793, "Início Jornada": "2026-07-28 07:19:15", "1° Atendimento": "2026-07-28 09:03:17", "Início Refeição": "2026-07-28 11:54:33", "Fim Refeição": "", "Fim Jornada": "", "Designados": 10, "Executados": 2, "Produtivos": 2, "Meta": 0.7, "Us Prev": 1.182, "Produção": 0.353924, "% Produção": 50.56, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "AA", "Situação": "Finalizado", "Frota": 4594, "Início Jornada": "2026-07-28 07:29:04", "1° Atendimento": "2026-07-28 08:36:51", "Início Refeição": "", "Fim Refeição": "", "Fim Jornada": "", "Designados": 27, "Executados": 14, "Produtivos": 12, "Meta": 0.42, "Us Prev": 0.883, "Produção": 0.263752, "% Produção": 62.8, "Unidade": "UO 67 - Passos"}, {"Ações": "", "Supervisor": "DOUGLAS PEREIRA BORGES", "Controlador": "OTAVIO AUGUSTO COSTA MACHADO", "Classificação": "AA", "Situação": "Finalizado", "Frota": 8408, "Início Jornada": "2026-07-28 08:07:18", "1° Atendimento": "2026-07-28 08:53:24", "Início Refeição": "2026-07-28 12:12:48", "Fim Refeição": "", "Fim Jornada": "", "Designados": 27, "Executados": 18, "Produtivos": 17, "Meta": 0.45, "Us Prev": 0.722, "Produção": 0.290957, "% Produção": 64.66, "Unidade": "UO 67 - Passos"}];
+
+const CLASS_ORDER = {AA:0, A:1, B:2, C:3, D:4};
+const CLASS_KEY = {AA:'aa', A:'a', B:'b', C:'c', D:'d'};
+
+function statusClass(s){
+  s = (s||'').toLowerCase();
+  if(s.includes('execu')) return 'exec';
+  if(s.includes('finaliz')) return 'fim';
+  if(s.includes('acion')) return 'acion';
+  if(s.includes('sem ativ')) return 'sematv';
+  return 'desig';
+}
+
+function num(v){
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+function fmtPct(v){
+  const n = num(v);
+  return n === null ? '—' : n.toFixed(1) + '%';
+}
+
+function fmtNum(v, d=2){
+  const n = num(v);
+  return n === null ? '—' : n.toFixed(d);
+}
+
+let activeSupervisors = new Set(); // vazio = todos
+let activeUnidade = 'TODAS';
+
+function getFilteredData(){
+  let data = currentData;
+  if(activeUnidade !== 'TODAS') data = data.filter(r => (r['Unidade']||'') === activeUnidade);
+  if(activeSupervisors.size > 0) data = data.filter(r => activeSupervisors.has(r['Supervisor'] || 'Sem supervisor'));
+  return data;
+}
+
+function calcImprod(r){
+  const exec = num(r['Executados']);
+  if(exec === null || exec === 0) return null;
+  // Se o robô já trouxe o campo real "Improdutivos" do sistema, usa ele.
+  // Caso contrário (planilha importada manualmente), estima pela diferença.
+  const improdReal = num(r['Improdutivos']);
+  const improd = improdReal !== null ? improdReal : (exec - (num(r['Produtivos']) || 0));
+  return (improd / exec) * 100;
+}
+
+function fmtHora(v){
+  if(!v) return '—';
+  const s = String(v);
+  const m = s.match(/(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : '—';
+}
+
+function calcJornadaAtual(inicioJornadaStr, referencia){
+  if(!inicioJornadaStr) return '—';
+  const inicio = new Date(String(inicioJornadaStr).replace(' ', 'T'));
+  if(isNaN(inicio.getTime())) return '—';
+  let diffMs = referencia.getTime() - inicio.getTime();
+  if(diffMs < 0) diffMs = 0;
+  const totalMin = Math.floor(diffMs / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h${m.toString().padStart(2,'0')}min`;
+}
+
+function renderUnidadeBar(){
+  const unidades = [...new Set(currentData.map(r => r['Unidade'] || 'Sem unidade'))].sort();
+  const bar = document.getElementById('unidadeBar');
+  const chips = ['TODAS', ...unidades];
+  bar.innerHTML = '<span class="flabel">Unidade:</span>' + chips.map(u => {
+    const label = u === 'TODAS' ? 'Todas' : u;
+    const active = u === activeUnidade ? 'active' : '';
+    return `<div class="filter-chip ${active}" onclick="setUnidadeFilter('${u.replace(/'/g,"\\'")}')">${label}</div>`;
+  }).join('');
+}
+
+function setUnidadeFilter(u){
+  activeUnidade = u;
+  activeSupervisors.clear();
+  render();
+}
+
+function renderFilterBar(){
+  const pool = activeUnidade === 'TODAS' ? currentData : currentData.filter(r => (r['Unidade']||'') === activeUnidade);
+  const supervisors = [...new Set(pool.map(r => r['Supervisor'] || 'Sem supervisor'))].sort();
+  const bar = document.getElementById('filterBar');
+  const chips = ['TODOS', ...supervisors];
+  bar.innerHTML = '<span class="flabel">Supervisor (seleção múltipla):</span>' + chips.map(s => {
+    const label = s === 'TODOS' ? 'Todos' : s;
+    const active = (s === 'TODOS' && activeSupervisors.size === 0) || (s !== 'TODOS' && activeSupervisors.has(s)) ? 'active' : '';
+    return `<div class="filter-chip ${active}" onclick="setSupervisorFilter('${s.replace(/'/g,"\\'")}')">${label}</div>`;
+  }).join('');
+}
+
+function setSupervisorFilter(s){
+  if(s === 'TODOS'){
+    activeSupervisors.clear();
+  }else if(activeSupervisors.has(s)){
+    activeSupervisors.delete(s);
+  }else{
+    activeSupervisors.add(s);
+  }
+  render();
+}
+
+function render(){
+  renderUnidadeBar();
+  renderFilterBar();
+  renderKPIs();
+  renderSupAvg();
+  renderControladorSummary();
+  renderAlert();
+  renderCards();
+  fitToScreen();
+}
+
+function renderControladorSummary(){
+  const data = getFilteredData();
+  const byCtrl = {};
+  data.forEach(r=>{
+    const c = r['Controlador'] || 'Sem controlador';
+    if(!byCtrl[c]) byCtrl[c] = { rows: [], meta:0, producao:0, projecao:0, classCount:{AA:0,A:0,B:0,C:0,D:0} };
+    const g = byCtrl[c];
+    g.rows.push(r);
+    g.meta += num(r['Meta']) || 0;
+    g.producao += num(r['Produção']) || 0;
+    g.projecao += num(r['Us Prev']) || 0;
+    if(g.classCount[r['Classificação']] !== undefined) g.classCount[r['Classificação']]++;
+  });
+
+  const names = Object.keys(byCtrl).sort();
+  const html = names.map(name=>{
+    const g = byCtrl[name];
+    const total = g.rows.length;
+    const pctMeta = g.meta ? (g.producao / g.meta * 100) : 0;
+    const classBadges = ['AA','A','B','C','D'].map(k=>{
+      const pct = total ? (g.classCount[k]/total*100) : 0;
+      const ck = CLASS_KEY[k];
+      return `<div class="cd-badge cd-${ck}"><span>${k}</span><b>${pct.toFixed(0)}%</b></div>`;
+    }).join('');
+    return `
+      <div class="controlador-card">
+        <div class="cc-top">
+          <div class="cc-name">${name}</div>
+          <div class="cc-count">${total} equipe${total>1?'s':''}</div>
+        </div>
+        <div class="class-dist">${classBadges}</div>
+        <div class="metrics-grid cc-metrics-4">
+          <div><div class="m-val">${g.meta.toFixed(2)}</div><div class="m-lbl">Meta</div></div>
+          <div><div class="m-val">${g.producao.toFixed(3)}</div><div class="m-lbl">Produção Atual</div></div>
+          <div><div class="m-val">${g.projecao.toFixed(2)}</div><div class="m-lbl">Projeção</div></div>
+          <div><div class="m-val ${pctMeta>=100?'imp-ok':pctMeta>=70?'imp-warn':'imp-bad'}">${pctMeta.toFixed(0)}%</div><div class="m-lbl">% da Meta</div></div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('controladorSummary').innerHTML = html;
+}
+
+function renderSupAvg(){
+  const pool = activeUnidade === 'TODAS' ? currentData : currentData.filter(r => (r['Unidade']||'') === activeUnidade);
+  const bySup = {};
+  pool.forEach(r=>{
+    const s = r['Supervisor'] || 'Sem supervisor';
+    const p = num(r['Produção']);
+    if(!bySup[s]) bySup[s] = {sum:0, count:0};
+    if(p !== null){ bySup[s].sum += p; bySup[s].count++; }
+  });
+  const row = document.getElementById('supAvgRow');
+  const names = Object.keys(bySup).sort();
+  row.innerHTML = '<span class="flabel">Média US Executada por Supervisor:</span>' + names.map(s=>{
+    const avg = bySup[s].count ? (bySup[s].sum/bySup[s].count) : 0;
+    return `<div class="sup-avg-chip">${s} <b>${avg.toFixed(3)}</b></div>`;
+  }).join('');
+}
+
+function renderKPIs(){
+  const data = getFilteredData();
+  const total = data.length;
+  const byClass = {AA:0, A:0, C:0, D:0};
+  let sumPct = 0, countPct = 0, designados = 0, produtivos = 0;
+  data.forEach(r=>{
+    if(byClass[r['Classificação']] !== undefined) byClass[r['Classificação']]++;
+    const p = num(r['% Produção']);
+    if(p !== null){ sumPct += p; countPct++; }
+    designados += num(r['Designados']) || 0;
+    produtivos += num(r['Produtivos']) || 0;
+  });
+  const avgPct = countPct ? (sumPct/countPct) : 0;
+  const efic = designados ? (produtivos/designados*100) : 0;
+
+  const kpis = [
+    {label:'Equipes em Campo', value: total, cls:''},
+    {label:'Produção Média', value: avgPct.toFixed(1)+'<small>%</small>', cls:''},
+    {label:'Classificação AA', value: byClass.AA, cls:'chip-aa'},
+    {label:'Classificação A', value: byClass.A, cls:'chip-a'},
+    {label:'Classificação C', value: byClass.C, cls:'chip-c'},
+    {label:'Classificação D', value: byClass.D, cls:'chip-d'},
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k=>`
+    <div class="kpi ${k.cls}">
+      <div class="label">${k.label}</div>
+      <div class="value">${k.value}</div>
+    </div>
+  `).join('');
+}
+
+function renderAlert(){
+  const dTeams = getFilteredData().filter(r=>r['Classificação']==='D');
+  const strip = document.getElementById('alertStrip');
+  if(dTeams.length === 0){ strip.style.display='none'; return; }
+  strip.style.display='flex';
+  document.getElementById('alertCount').textContent = `${dTeams.length} EQUIPE${dTeams.length>1?'S':''} CLASSIFICAÇÃO D`;
+  const names = [...new Set(dTeams.map(r=>r['Controlador']))];
+  document.getElementById('alertNames').textContent = names.join('  ·  ');
+}
+
+function renderCards(){
+  const bySup = {};
+  getFilteredData().forEach(r=>{
+    const s = r['Supervisor'] || 'Sem supervisor';
+    if(!bySup[s]) bySup[s] = [];
+    bySup[s].push(r);
+  });
+
+  let html = '';
+  Object.keys(bySup).sort().forEach(sup=>{
+    const rows = bySup[sup].slice().sort((a,b)=> (CLASS_ORDER[b['Classificação']]??0) - (CLASS_ORDER[a['Classificação']]??0));
+    html += `<div class="sup-group">
+      <h3>${sup} <span class="tag">${rows.length} equipe${rows.length>1?'s':''}</span></h3>
+      <div class="cards">`;
+    rows.forEach(r=>{
+      const cls = (r['Classificação']||'A').toLowerCase();
+      const ck = CLASS_KEY[r['Classificação']] || 'a';
+      const pct = num(r['% Produção']);
+      const pctDisplay = fmtPct(r['% Produção']);
+      const barWidth = pct === null ? 0 : Math.min(pct, 100);
+      const improd = calcImprod(r);
+      const improdDisplay = improd === null ? '—' : improd.toFixed(1) + '%';
+      const improdClass = improd === null ? '' : improd <= 6 ? 'imp-ok' : improd <= 10 ? 'imp-warn' : 'imp-bad';
+      const cadastro = fmtHora(r['Início Jornada']);
+      const jornadaAtual = calcJornadaAtual(r['Início Jornada'], lastUpdateTime);
+      html += `
+        <div class="card ${ck}">
+          <div class="card-top">
+            <div>
+              <div class="name">${r['Controlador']||'—'}</div>
+              <div class="frota">Frota ${r['Frota']||'—'}</div>
+            </div>
+            <div class="class-badge ${ck}">${r['Classificação']||'-'}</div>
+          </div>
+          <span class="status-pill ${statusClass(r['Situação'])}"><span class="dot"></span>${r['Situação']||'—'}</span>
+          <div class="metrics-grid">
+            <div><div class="m-val">${r['Designados']??'—'}</div><div class="m-lbl">Designados</div></div>
+            <div><div class="m-val">${r['Executados']??'—'}</div><div class="m-lbl">Executados</div></div>
+            <div><div class="m-val">${r['Produtivos']??'—'}</div><div class="m-lbl">Produtivos</div></div>
+          </div>
+          <div class="bar-row"><span class="bar-lbl">% Produção</span><span class="pct">${pctDisplay}</span></div>
+          <div class="bar-track"><div class="bar-fill ${ck}" style="width:${barWidth}%"></div></div>
+          <div class="bar-row"><span class="bar-lbl">% Improd</span><span class="pct improd-pct ${improdClass}">${improdDisplay}</span></div>
+          <div class="metrics-grid metrics-grid-2">
+            <div><div class="m-val">${fmtNum(r['Meta'])}</div><div class="m-lbl">Meta</div></div>
+            <div><div class="m-val">${fmtNum(r['Produção'], 3)}</div><div class="m-lbl">US Exec.</div></div>
+            <div><div class="m-val">${fmtNum(r['Us Prev'])}</div><div class="m-lbl">US Prev.</div></div>
+          </div>
+          <div class="card-foot">
+            <span>🕒 Cadastro ${cadastro}</span>
+            <span>⏱ Jornada ${jornadaAtual}</span>
+          </div>
+        </div>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById('supervisors').innerHTML = html;
+}
+
+// ---------- FULLSCREEN ----------
+function toggleFullscreen(){
+  const btn = document.getElementById('fullscreenBtn');
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  }else{
+    document.exitFullscreen();
+  }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fullscreenBtn');
+  btn.innerHTML = document.fullscreenElement ? '⛶ Sair da tela cheia' : '⛶ Tela cheia';
+});
+
+// ---------- FONTE DE DADOS AUTOMÁTICA ----------
+// Cole aqui a URL "raw" do data.json gerado pelo robô no GitHub, por exemplo:
+// https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPO/main/data.json
+// Deixe em branco ('') para usar somente o import manual de planilha.
+const DATA_SOURCE_URL = '';
+
+let autoSourceOk = false;
+
+async function fetchRemoteData(silent){
+  if(!DATA_SOURCE_URL){ return false; }
+  try{
+    const resp = await fetch(DATA_SOURCE_URL + '?t=' + Date.now()); // evita cache
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+    if(!json.equipes || !Array.isArray(json.equipes)) throw new Error('Formato inesperado');
+    currentData = json.equipes;
+    lastUpdateTime = json.atualizado_em ? new Date(json.atualizado_em) : new Date();
+    autoSourceOk = true;
+    document.getElementById('lastUpdate').textContent = lastUpdateTime.toLocaleTimeString('pt-BR');
+    document.getElementById('importBtn').style.borderColor = '';
+    document.getElementById('importBtn').textContent = '📥 Importar planilha (manual)';
+    refreshSeconds = 30*60;
+    render();
+    return true;
+  }catch(err){
+    autoSourceOk = false;
+    if(!silent) console.warn('Não foi possível buscar dados automáticos:', err.message);
+    return false;
+  }
+}
+
+// ---------- IMPORT ----------
+document.getElementById('fileInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const wb = XLSX.read(evt.target.result, {type:'binary', cellDates:true});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      currentData = json;
+      activeSupervisors.clear();
+      activeUnidade = 'TODAS';
+      markUpdated();
+      render();
+    }catch(err){
+      alert('Não foi possível ler o arquivo. Verifique se é uma planilha válida.\n' + err.message);
+    }
+  };
+  reader.readAsBinaryString(file);
+});
+
+// ---------- AUTO-FIT (garante que tudo caiba na tela, sem scroll) ----------
+function fitToScreen(){
+  const root = document.getElementById('appRoot');
+  root.style.transform = 'scale(1)';
+  root.style.width = '100%';
+  // força reflow antes de medir
+  void root.offsetHeight;
+  const contentHeight = root.scrollHeight;
+  const viewportHeight = window.innerHeight;
+  let scale = viewportHeight / contentHeight;
+  if(scale > 1) scale = 1;
+  if(scale < 0.35) scale = 0.35; // limite mínimo de legibilidade
+  root.style.transform = `scale(${scale})`;
+  root.style.width = (100/scale) + '%';
+}
+
+window.addEventListener('resize', fitToScreen);
+document.addEventListener('fullscreenchange', fitToScreen);
+
+// ---------- CLOCK & COUNTDOWN ----------
+let lastUpdateTime = new Date();
+let refreshSeconds = 30*60;
+
+function markUpdated(){
+  lastUpdateTime = new Date();
+  refreshSeconds = 30*60;
+  document.getElementById('lastUpdate').textContent = lastUpdateTime.toLocaleTimeString('pt-BR');
+}
+
+function tick(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('pt-BR');
+  document.getElementById('dateLabel').textContent = now.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'});
+
+  refreshSeconds--;
+  if(refreshSeconds <= 0){
+    refreshSeconds = 30*60;
+    if(DATA_SOURCE_URL){
+      fetchRemoteData(false);
+    }else{
+      // Sem fonte automática configurada: lembrete visual pra reimportar a planilha
+      document.getElementById('importBtn').style.borderColor = 'var(--d)';
+      document.getElementById('importBtn').textContent = '⚠️ Atualizar planilha agora';
+    }
+  }
+  const m = Math.floor(refreshSeconds/60).toString().padStart(2,'0');
+  const s = (refreshSeconds%60).toString().padStart(2,'0');
+  document.getElementById('countdown').textContent = `${m}:${s}`;
+}
+
+setInterval(tick, 1000);
+tick();
+markUpdated();
+render();
+if(DATA_SOURCE_URL){ fetchRemoteData(false); }
+setTimeout(fitToScreen, 300);
+setTimeout(fitToScreen, 1000);
+</script>
+</body>
+</html>
